@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Serverless Task Manager</title>
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: auto; }
+        input, button { margin: 5px 0; padding: 5px; }
+    </style>
+</head>
+<body>
+<h1>Task Manager</h1>
+
+<div id="login">
+    <input id="username" placeholder="Username"><br>
+    <input id="password" placeholder="Password" type="password"><br>
+    <button onclick="login()">Login</button>
+</div>
+
+<div id="app" style="display:none;">
+    <h2>Create Task</h2>
+    <input id="description" placeholder="Task description"><br>
+    <input id="targetDate" type="date"><br>
+    <button onclick="createTask()">Create Task</button>
+    
+    <h2>Your Tasks</h2>
+    <ul id="tasks"></ul>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.2.1/dist/amazon-cognito-identity.min.js"></script>
+<script>
+const poolData = {
+    UserPoolId: '${cognito_user_pool_id}',
+    ClientId: '${cognito_client_id}'
+};
+const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+const apiBaseUrl = '${api_url}';
+
+function login() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const authDetails = new AmazonCognitoIdentity.AuthenticationDetails({ Username: username, Password: password });
+    const cognitoUser = new AmazonCognitoIdentity.CognitoUser({ Username: username, Pool: userPool });
+
+    cognitoUser.authenticateUser(authDetails, {
+        onSuccess: function(result) {
+            window.idToken = result.getIdToken().getJwtToken();
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+            loadTasks();
+        },
+        onFailure: function(err) { alert(err.message || JSON.stringify(err)); }
+    });
+}
+
+function createTask() {
+    const desc = document.getElementById('description').value;
+    const date = document.getElementById('targetDate').value;
+
+    fetch(apiBaseUrl + '/tasks', {
+        method: 'POST',
+        headers: {
+            'Authorization': window.idToken,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ description: desc, targetDate: date })
+    }).then(() => loadTasks());
+}
+
+function loadTasks() {
+    fetch(apiBaseUrl + '/tasks', {
+        method: 'GET',
+        headers: { 'Authorization': window.idToken }
+    }).then(r => r.json()).then(tasks => {
+        const list = document.getElementById('tasks');
+        list.innerHTML = '';
+        tasks.forEach(t => {
+            const li = document.createElement('li');
+            li.textContent = t.description + ' - ' + t.status + ' (Target: ' + t.targetDate + ')';
+            list.appendChild(li);
+        });
+    });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+output "api_gateway_url" { value = module.tasks_api.api_url }
+output "frontend_url" { value = module.frontend.cloudfront_url }
+output "cognito_user_pool_id" { value = module.auth.user_pool_id }
+output "cognito_user_pool_client_id" { value = module.auth.user_pool_client_id }
+output "dynamodb_table_name" { value = module.database.tasks_table_name }
